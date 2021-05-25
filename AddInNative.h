@@ -27,6 +27,7 @@ public:
     {
 		eMethConnect,
 		eMethDial,
+		eMethPrintDataMatrix,
         eLastMethod      // Always last
     };
 
@@ -64,6 +65,7 @@ public:
 private:
 	void addError(uint32_t wcode, const wchar_t* source, const wchar_t* descriptor, long code);
 	long findName(const wchar_t* names[], const wchar_t* name, const uint32_t size) const;
+	bool sendDataMatrix(tVariant ip, tVariant data, tVariant copies);
     // Attributes
 	IAddInDefBase *m_iConnect;
 	IMemoryManager *m_iMemory;

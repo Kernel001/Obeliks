@@ -17,7 +17,8 @@ static const wchar_t *g_PropNames[] = {
 };
 static const wchar_t *g_MethodNames[] = {
 	L"Connect",
-	L"Dial"
+	L"Dial",
+	L"sendDataMatrix"
 };
 
 static const wchar_t g_kClassNames[] = L"Obeliks"; 
@@ -233,6 +234,8 @@ long CAddInNative::GetNParams(const long lMethodNum)
 		return 3;
 	case eMethDial:
 		return 3;
+	case eMethPrintDataMatrix:
+		return 3; //printer IP, printCode, numOfCopies
 	default:
 		return 0;
 	}
@@ -246,6 +249,7 @@ bool CAddInNative::GetParamDefValue(const long lMethodNum, const long lParamNum,
 	switch (lMethodNum) {
 	case eMethConnect:
 	case eMethDial:
+	case eMethPrintDataMatrix:
 		break;
 	default:
 		return false;
@@ -259,6 +263,7 @@ bool CAddInNative::HasRetVal(const long lMethodNum)
 	{
 	case eMethConnect:
 	case eMethDial:
+	case eMethPrintDataMatrix:
 		return true;
 	default:
 		return false;
@@ -303,7 +308,15 @@ bool CAddInNative::CallAsFunc(const long lMethodNum,
 			pvarRetValue->bVal = false;
 		return true;
 		break;
-
+	case eMethPrintDataMatrix:
+		if (lSizeArray != 3 || !paParams) //no params, abort
+			return false;
+		if (TV_VT(&paParams[0]) != VTYPE_PWSTR || TV_VT(&paParams[1]) != VTYPE_PWSTR || TV_VT(&paParams[2]) != VTYPE_UINT) //check param types
+			return false;
+		TV_VT(pvarRetValue) = VTYPE_BOOL;
+		pvarRetValue->bVal = this->sendDataMatrix(paParams[0], paParams[1], paParams[2]);
+		return true;
+		break;
 	default:
 		break;
 	}
@@ -365,6 +378,57 @@ long CAddInNative::findName(const wchar_t* names[], const wchar_t* name, const u
 		}
 	}
 	return ret;
+}
+bool CAddInNative::sendDataMatrix(tVariant ip, tVariant data, tVariant copies)
+{
+	WORD wVersionRequest;
+	WSADATA wsaData;
+	int err;
+
+	wVersionRequest = MAKEWORD(2, 2);
+	err = WSAStartup(wVersionRequest, &wsaData);
+	if (err != 0) {
+		addError(1000, L"CAddInNative::sendDataMatrix.WSAStartup", L"Failed startup WSA", err);
+		return false;
+	}
+
+	int s = socket(AF_INET, SOCK_STREAM, 0);
+	if (s < 0) {
+		addError(1010, L"CAddInNative::sendDataMatrix.socket()", L"Can't create socket", 1010L);
+		WSACleanup();
+		return false;
+	}
+	struct sockaddr_in peer;
+	peer.sin_family = AF_INET;
+	peer.sin_port = htons(9100);
+	peer.sin_addr.s_addr = inet_addr(ip.pstrVal);
+	int result = connect(s, (struct sockaddr*)&peer, sizeof(peer));
+	if (result) {
+		addError(1020, L"CAddInNative::sendDataMatrix.connect", L"Failed connecting to address", 1020L);
+		WSACleanup();
+		return false;
+	};
+	
+	//std::string name{ data.pstrVal, 24 };
+
+	//char buffer[200];
+	//sprintf_s(buffer, 200, "^AD\r^Q54,2\r^W90\r^H19\r^P1\r^S2\r^L\rXRB70,78,11,0,32\r%s\rAB,26,310,1,1,0,0,%s\rE\r", data.pstrVal, name.c_str());
+	result = send(s, data.pstrVal, strlen(data.pstrVal), 0);
+	if (result < 0) {
+		addError(1030, L"CAddInNative::sendDataMatrix.send", L"Failed sending data", 1030L);
+		shutdown(s, 1);
+		WSACleanup();
+		return false;
+	};
+
+	if (shutdown(s, 1) < 0) {
+		addError(1040, L"CAddInNative::sendDataMatrix.shutdown", L"Failed shutdown socket", 1040L);
+		WSACleanup();
+		return false;
+	}
+	WSACleanup();
+
+	return true;
 }
 //---------------------------------------------------------------------------//
 uint32_t convToShortWchar(WCHAR_T** Dest, const wchar_t* Source, uint32_t len)

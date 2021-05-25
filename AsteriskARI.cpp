@@ -31,7 +31,7 @@ AsteriskARI::AsteriskARI(tVariant servAddr, tVariant user, tVariant pass)
 			astVersion = v.at(L"system").at(L"version").as_string();
 			kernelVersion = v.at(L"build").at(L"kernel").as_string();
 		}
-	}).wait();  //TODO remove from final version!!!
+	});
 }
 
 AsteriskARI::~AsteriskARI()
@@ -51,7 +51,7 @@ bool AsteriskARI::Dial(tVariant from, tVariant to, tVariant callerID)
 		.append_query(L"callerId", string_t(callerID.pwstrVal))
 		.append_query(L"context", L"Long-Distance")
 		.to_string();
-	m_client->request(methods::POST, path).wait(); //TODO remove from final!
+	m_client->request(methods::POST, path); //TODO remove from final!
 	
 	return true;
 }

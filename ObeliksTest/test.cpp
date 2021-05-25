@@ -67,12 +67,13 @@ TEST_F(NativeFixture, PropReadableWritableOK) {
 
 TEST_F(NativeFixture, MethodNumberOK) {
 	long nmeth = subj->GetNMethods();
-	ASSERT_TRUE(nmeth == 2);
+	ASSERT_TRUE(nmeth == 3);
 }
 
 TEST_F(NativeFixture, findMethodNublerOK) {
 	EXPECT_TRUE(subj->FindMethod(L"Connect") == 0L);
 	EXPECT_TRUE(subj->FindMethod(L"Dial") == 1L);
+	EXPECT_TRUE(subj->FindMethod(L"sendDataMatrix") == 2L);
 }
 
 TEST_F(NativeFixture, getMethodConnectNameOK) {
@@ -87,10 +88,17 @@ TEST_F(NativeFixture, getMethodDialNameOK) {
 	delete s;
 }
 
+TEST_F(NativeFixture, getMethodsendMatrixOK) {
+	const wchar_t* s = subj->GetMethodName(2L, 0);
+	EXPECT_EQ(wcscmp(s, L"sendDataMatrix"), 0);
+	delete s;
+}
+
 
 TEST_F(NativeFixture, getNParams) {
 	ASSERT_TRUE(subj->GetNParams(0L) == 3L);
 	ASSERT_TRUE(subj->GetNParams(1L) == 3L);
+	ASSERT_TRUE(subj->GetNParams(2L) == 3L);
 	ASSERT_TRUE(subj->GetNParams(999L) == 0L);
 }
 
@@ -131,6 +139,7 @@ TEST_F(NativeFixture, dial) {
 	params[2].pwstrVal = L"pas3k42";
 	params[2].wstrLen = wcslen(params[2].pwstrVal);
 	ASSERT_TRUE(subj->CallAsFunc(subj->FindMethod(L"Connect"), retVal, params, 3));
+	EXPECT_TRUE(retVal->bVal);
 
 	//From
 	TV_VT(&params[0]) = VTYPE_PWSTR;
@@ -144,7 +153,26 @@ TEST_F(NativeFixture, dial) {
 	TV_VT(&params[2]) = VTYPE_PWSTR;
 	params[2].pwstrVal = L"Тест";
 	params[2].wstrLen = wcslen(params[2].pwstrVal);
-	ASSERT_TRUE(subj->CallAsFunc(subj->FindMethod(L"Dial"), retVal, params, 3));
+	subj->CallAsFunc(subj->FindMethod(L"Dial"), retVal, params, 3);
+	EXPECT_TRUE(retVal->bVal);
+}
+TEST_F(NativeFixture, sendDataMatrix) {
+	tVariant *retVal = new tVariant();
+	tVarInit(retVal);
+	
+	tVariant params[3];
+	TV_VT(&params[0]) = VTYPE_PWSTR;
+	params[0].pwstrVal = L"192.168.1.235";
+	params[0].wstrLen = wcslen(params[0].pwstrVal);
+	params[0].pstrVal = "192.168.1.235";
+	params[0].strLen = strlen(params[0].pstrVal);
+	TV_VT(&params[1]) = VTYPE_PWSTR;
+	params[1].pstrVal = "^AD\r^Q54, 2\r^W90\r^H19\r^P1\r^S2\r^L\rXRB70, 78, 11, 0, 32\r0104607112814462215m?MuM93gljz\rAB, 26, 310, 1, 1, 0, 0, 0104607112814462215m?MuM\rE\r";
+	params[1].strLen = strlen(params[1].pstrVal);
+	TV_VT(&params[2]) = VTYPE_UINT;
+	params[2].uintVal = 1;
+	subj->CallAsFunc(subj->FindMethod(L"sendDataMatrix"), retVal, params, 3);
+	EXPECT_TRUE(retVal->bVal);
 }
 
 int main(int argc, char* argv[]) {
